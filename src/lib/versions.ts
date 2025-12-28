@@ -9,6 +9,24 @@ export interface SavedVersion {
 
 const KEY = "auto-card-maker.versions.v1";
 
+type UnknownRecord = Record<string, unknown>;
+
+function isRecord(value: unknown): value is UnknownRecord {
+  return typeof value === "object" && value !== null;
+}
+
+function asRecord(value: unknown): UnknownRecord {
+  return isRecord(value) ? value : {};
+}
+
+function asBoolean(value: unknown): boolean | undefined {
+  return typeof value === "boolean" ? value : undefined;
+}
+
+function asString(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
 function safeParse<T>(raw: string | null): T | null {
   if (!raw) return null;
   try {
@@ -27,18 +45,13 @@ export function loadVersions(): SavedVersion[] {
     .filter((v): v is SavedVersion => Boolean(v && typeof v === 'object' && 'state' in v))
     .map((v) => {
       const next = { ...v };
-      const design = (next.state as any)?.design ?? {};
-      const data = (next.state as any)?.data ?? {};
 
-      if (!design.backgroundVariant) {
-        next.state = {
-          ...(next.state as any),
-          design: {
-            ...design,
-            backgroundVariant: 'v1',
-          },
-        } as SavedVersion['state'];
-      }
+      const stateRecord = asRecord((next as UnknownRecord).state);
+      const designRecord = asRecord(stateRecord.design);
+      const dataRecord = asRecord(stateRecord.data);
+      const contactVisibilityRecord = asRecord(designRecord.contactVisibility);
+
+      const backgroundVariant = asString(designRecord.backgroundVariant) ?? "v1";
 
       // ensure new contact fields exist
       const nextData = {
@@ -50,34 +63,35 @@ export function loadVersions(): SavedVersion[] {
         instagram: '',
         youtube: '',
         github: '',
-        ...data,
+        ...dataRecord,
       };
 
       const nextVisibility = {
-        email: true,
-        phone: Boolean(design?.contactVisibility?.phone ?? true),
-        mobile: Boolean(design?.contactVisibility?.mobile ?? false),
-        fax: Boolean(design?.contactVisibility?.fax ?? false),
-        website: Boolean(design?.contactVisibility?.website ?? true),
-        address: Boolean(design?.contactVisibility?.address ?? false),
-        facebook: Boolean(design?.contactVisibility?.facebook ?? false),
-        twitter: Boolean(design?.contactVisibility?.twitter ?? false),
-        linkedin: Boolean(design?.contactVisibility?.linkedin ?? false),
-        instagram: Boolean(design?.contactVisibility?.instagram ?? false),
-        youtube: Boolean(design?.contactVisibility?.youtube ?? false),
-        github: Boolean(design?.contactVisibility?.github ?? false),
+        email: asBoolean(contactVisibilityRecord.email) ?? true,
+        phone: asBoolean(contactVisibilityRecord.phone) ?? true,
+        mobile: asBoolean(contactVisibilityRecord.mobile) ?? false,
+        fax: asBoolean(contactVisibilityRecord.fax) ?? false,
+        website: asBoolean(contactVisibilityRecord.website) ?? true,
+        address: asBoolean(contactVisibilityRecord.address) ?? false,
+        facebook: asBoolean(contactVisibilityRecord.facebook) ?? false,
+        twitter: asBoolean(contactVisibilityRecord.twitter) ?? false,
+        linkedin: asBoolean(contactVisibilityRecord.linkedin) ?? false,
+        instagram: asBoolean(contactVisibilityRecord.instagram) ?? false,
+        youtube: asBoolean(contactVisibilityRecord.youtube) ?? false,
+        github: asBoolean(contactVisibilityRecord.github) ?? false,
       };
 
       next.state = {
-        ...(next.state as any),
+        ...stateRecord,
         data: nextData,
         design: {
-          ...((next.state as any)?.design ?? {}),
+          ...designRecord,
           // Cards are standard size only (horizontal).
           orientation: 'horizontal',
+          backgroundVariant,
           contactVisibility: nextVisibility,
         },
-      } as SavedVersion['state'];
+      } as unknown as SavedVersion["state"];
 
       return next;
     });
