@@ -30,9 +30,9 @@ const config: Config = {
         '5xl': '2.5rem',
       },
       boxShadow: {
-        'glow': '0 0 20px rgba(99, 102, 241, 0.3)',
-        'glow-lg': '0 0 40px rgba(99, 102, 241, 0.4)',
-        'inner-glow': 'inset 0 0 20px rgba(99, 102, 241, 0.1)',
+        'glow': '0 0 20px rgba(20, 184, 166, 0.3)',
+        'glow-lg': '0 0 40px rgba(20, 184, 166, 0.4)',
+        'inner-glow': 'inset 0 0 20px rgba(20, 184, 166, 0.1)',
       },
       animation: {
         'fade-in': 'fadeIn 0.3s ease-out',
@@ -64,8 +64,8 @@ const config: Config = {
           '50%': { transform: 'translateY(-4px)' },
         },
         pulseGlow: {
-          '0%, 100%': { boxShadow: '0 0 0 0 rgba(139, 92, 246, 0.4)' },
-          '50%': { boxShadow: '0 0 0 8px rgba(139, 92, 246, 0)' },
+          '0%, 100%': { boxShadow: '0 0 0 0 rgba(14, 165, 233, 0.4)' },
+          '50%': { boxShadow: '0 0 0 8px rgba(14, 165, 233, 0)' },
         },
       },
       backgroundImage: {

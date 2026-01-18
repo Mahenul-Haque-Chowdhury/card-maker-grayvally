@@ -14,13 +14,17 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CardCraft Pro — Professional Business Card Designer",
-  description: "Create stunning, print-ready business cards with premium templates. Real-time preview, multiple export formats, and professional design tools.",
-  keywords: ["business card", "card maker", "design tool", "print-ready", "professional cards"],
-  authors: [{ name: "CardCraft" }],
+  title: "GrayVally Business Card Maker — Professional Business Card Designer",
+  description: "Design print-ready business cards with premium templates, live preview, and export tools from GrayVally Business Card Maker.",
+  keywords: ["business card", "card maker", "design tool", "print-ready", "professional cards", "GrayVally"],
+  authors: [{ name: "GrayVally" }],
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/GrayVally.png",
+  },
   openGraph: {
-    title: "CardCraft Pro — Professional Business Card Designer",
-    description: "Create stunning, print-ready business cards with premium templates.",
+    title: "GrayVally Business Card Maker — Professional Business Card Designer",
+    description: "Design print-ready business cards with premium templates and live preview.",
     type: "website",
   },
 };
@@ -33,7 +37,8 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='url(%23g)'/><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' style='stop-color:%236366f1'/><stop offset='100%25' style='stop-color:%238b5cf6'/></linearGradient></defs></svg>" />
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="apple-touch-icon" href="/GrayVally.png" />
         {/* Google Fonts for all font options */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

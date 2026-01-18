@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useMemo, useRef, useState } from 'react';
-import type { BusinessCardState, DesignSettings } from '@/types';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Rnd } from 'react-rnd';
+import type { BusinessCardState, CardData, DesignSettings, ElementBox, ElementTextStyle, CardSide } from '@/types';
 import { Icon } from '@/components/ui/Icon';
 import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf';
 import { toPng, toSvg } from 'html-to-image';
 import { getTemplateById } from '@/lib/templates';
 import { readableTextColor, withAlpha } from '@/lib/color';
@@ -13,6 +14,12 @@ import { computeBaseBackground, getPresetBackground, getPresetTextColor } from '
 interface PreviewPanelProps {
   state: BusinessCardState;
   patchDesign: (partial: Partial<DesignSettings>) => void;
+  patchData?: (partial: Partial<CardData>) => void;
+
+  undo?: () => void;
+  redo?: () => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
 }
 
 function fontFamily(pairing: BusinessCardState['design']['font']) {
@@ -155,11 +162,11 @@ function ExportModal({
               onClick={() => void onExport('svg')}
               className="group ui-surface rounded-2xl p-4 hover:ui-shadow-lg transition-all text-left hover-lift relative overflow-hidden"
             >
-              <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-bold" style={{ background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(139, 92, 246, 0.1))', color: 'rgb(139, 92, 246)' }}>
+              <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-bold" style={{ background: 'linear-gradient(135deg, rgba(14, 165, 233, 0.2), rgba(14, 165, 233, 0.1))', color: 'rgb(14, 165, 233)' }}>
                 PRO
               </div>
-              <div className="h-12 w-12 rounded-xl grid place-items-center mb-3" style={{ background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.12), rgba(139, 92, 246, 0.06))', border: '1px solid rgba(139, 92, 246, 0.2)' }}>
-                <Icon name="VectorSquare" size={22} style={{ color: 'rgb(139, 92, 246)' }} decorative />
+              <div className="h-12 w-12 rounded-xl grid place-items-center mb-3" style={{ background: 'linear-gradient(135deg, rgba(14, 165, 233, 0.12), rgba(14, 165, 233, 0.06))', border: '1px solid rgba(14, 165, 233, 0.2)' }}>
+                <Icon name="VectorSquare" size={22} style={{ color: 'rgb(14, 165, 233)' }} decorative />
               </div>
               <div className="text-sm font-bold">SVG</div>
               <div className="text-xs mt-1" style={{ color: 'var(--muted-2)' }}>
@@ -183,12 +190,57 @@ function ExportModal({
   );
 }
 
-export const PreviewPanel: React.FC<PreviewPanelProps> = ({ state, patchDesign }) => {
+export const PreviewPanel: React.FC<PreviewPanelProps> = ({
+  state,
+  patchDesign,
+  patchData,
+  undo,
+  redo,
+  canUndo,
+  canRedo,
+}) => {
   const [side, setSide] = useState<'front' | 'back'>('front');
   const zoomStops = [0.75, 1, 1.25] as const;
   const [zoomIndex, setZoomIndex] = useState<number>(1);
   const [exportOpen, setExportOpen] = useState(false);
-  const cardRef = useRef<HTMLDivElement>(null);
+  const frontExportRef = useRef<HTMLDivElement>(null);
+  const backExportRef = useRef<HTMLDivElement>(null);
+
+  const [editMode, setEditMode] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draftText, setDraftText] = useState<string>('');
+  const [rotationDraft, setRotationDraft] = useState<Record<string, number>>({});
+
+  const frontInnerRef = useRef<HTMLDivElement>(null);
+  const backInnerRef = useRef<HTMLDivElement>(null);
+
+  const [frontInnerSize, setFrontInnerSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
+  const [backInnerSize, setBackInnerSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
+
+  useEffect(() => {
+    const el = frontInnerRef.current;
+    if (!el) return;
+    const obs = new ResizeObserver((entries) => {
+      const cr = entries[0]?.contentRect;
+      if (!cr) return;
+      setFrontInnerSize({ w: cr.width, h: cr.height });
+    });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const el = backInnerRef.current;
+    if (!el) return;
+    const obs = new ResizeObserver((entries) => {
+      const cr = entries[0]?.contentRect;
+      if (!cr) return;
+      setBackInnerSize({ w: cr.width, h: cr.height });
+    });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
 
   const template = useMemo(() => getTemplateById(state.design.template), [state.design.template]);
 
@@ -205,7 +257,8 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ state, patchDesign }
       return getPresetBackground(state.design.backgroundPreset);
     }
     if (state.design.backgroundStyle === 'image' && state.design.backgroundImage) {
-      return `url(${state.design.backgroundImage}) center/cover no-repeat`;
+      // Render the image as an editable layer; keep base as solid.
+      return state.design.backgroundColor || '#ffffff';
     }
     if (state.design.backgroundStyle === 'solid') {
       // Use backgroundColor for solid style
@@ -220,7 +273,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ state, patchDesign }
       return getPresetBackground(state.design.backBackgroundPreset);
     }
     if (state.design.backBackgroundStyle === 'image' && state.design.backBackgroundImage) {
-      return `url(${state.design.backBackgroundImage}) center/cover no-repeat`;
+      return state.design.backBackgroundColor || '#f8fafc';
     }
     if (state.design.backBackgroundStyle === 'solid') {
       return state.design.backBackgroundColor || '#f8fafc';
@@ -233,6 +286,137 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ state, patchDesign }
     }, template.id);
   }, [state.design, template.id]);
 
+  const layoutRoot = useMemo(() => {
+    return (
+      state.design.layout ?? {
+        front: { elements: {} },
+        back: { elements: {} },
+      }
+    );
+  }, [state.design.layout]);
+
+  const sideLayout = useMemo(() => {
+    return side === 'front' ? layoutRoot.front : layoutRoot.back;
+  }, [layoutRoot, side]);
+
+  const manualLayoutActiveFor = useCallback(
+    (s: CardSide) => {
+      const sl = s === 'front' ? layoutRoot.front : layoutRoot.back;
+      return editMode || !!sl?.backgroundImage || Object.keys(sl?.elements ?? {}).length > 0;
+    },
+    [editMode, layoutRoot]
+  );
+
+  const manualFrontActive = manualLayoutActiveFor('front');
+  const manualBackActive = manualLayoutActiveFor('back');
+
+  const gridStep = 4;
+  const snapNumber = useCallback(
+    (value: number) => {
+      if (!state.design.snapToGrid) return value;
+      return Math.round(value / gridStep) * gridStep;
+    },
+    [state.design.snapToGrid]
+  );
+
+  const getInnerRef = useCallback(
+    (s: CardSide) => (s === 'front' ? frontInnerRef : backInnerRef),
+    []
+  );
+
+  const getScaleForSide = useCallback(
+    (s: CardSide, targetW?: number, targetH?: number) => {
+      const sl = s === 'front' ? layoutRoot.front : layoutRoot.back;
+      const baseW = sl?.baseW;
+      const baseH = sl?.baseH;
+
+      const currentW = targetW;
+      const currentH = targetH;
+
+      const sx = baseW && currentW ? currentW / baseW : 1;
+      const sy = baseH && currentH ? currentH / baseH : 1;
+      return { sx, sy, baseW: baseW ?? currentW ?? 0, baseH: baseH ?? currentH ?? 0, currentW: currentW ?? 0, currentH: currentH ?? 0 };
+    },
+    [layoutRoot]
+  );
+
+  const patchLayoutSide = useCallback(
+    (s: CardSide, nextSide: typeof layoutRoot.front) => {
+      patchDesign({
+        layout: {
+          ...layoutRoot,
+          [s]: nextSide,
+        },
+      });
+    },
+    [layoutRoot, patchDesign]
+  );
+
+  const setElementBox = useCallback(
+    (s: CardSide, id: string, nextBox: ElementBox) => {
+      const current = s === 'front' ? layoutRoot.front : layoutRoot.back;
+      const next = {
+        ...current,
+        elements: {
+          ...(current.elements ?? {}),
+          [id]: nextBox,
+        },
+      };
+      patchLayoutSide(s, next);
+    },
+    [layoutRoot, patchLayoutSide]
+  );
+
+  const setBackgroundImageBox = useCallback(
+    (s: CardSide, nextBox: ElementBox | undefined) => {
+      const current = s === 'front' ? layoutRoot.front : layoutRoot.back;
+      const next = {
+        ...current,
+        backgroundImage: nextBox,
+      };
+      patchLayoutSide(s, next);
+    },
+    [layoutRoot, patchLayoutSide]
+  );
+
+  const resetLayoutSide = useCallback(
+    (s: CardSide) => {
+      patchLayoutSide(s, { elements: {} });
+      setSelectedId(null);
+      setEditingId(null);
+      setRotationDraft({});
+    },
+    [patchLayoutSide]
+  );
+
+  const elementField = useCallback((id: string): keyof CardData | null => {
+    if (id.startsWith('contact.')) {
+      const k = id.slice('contact.'.length) as keyof CardData;
+      return k;
+    }
+    switch (id) {
+      case 'fullName':
+      case 'jobTitle':
+      case 'companyName':
+      case 'tagline':
+      case 'email':
+      case 'phone':
+      case 'mobile':
+      case 'fax':
+      case 'website':
+      case 'address':
+      case 'facebook':
+      case 'twitter':
+      case 'linkedin':
+      case 'instagram':
+      case 'youtube':
+      case 'github':
+        return id as keyof CardData;
+      default:
+        return null;
+    }
+  }, []);
+
   const computedText = useMemo(() => {
     // Determine text color based on background
     if (state.design.backgroundStyle === 'preset') {
@@ -242,6 +426,30 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ state, patchDesign }
     if (state.design.backgroundStyle === 'gradient') return '#ffffff';
     return readableTextColor('#ffffff');
   }, [state.design.backgroundStyle, state.design.backgroundPreset, template.category]);
+
+  const defaultTextStyle = useCallback(
+    (id: string): ElementTextStyle => {
+      const base: ElementTextStyle = {
+        fontSize: 12,
+        color: withAlpha(computedText, 0.88),
+        bold: false,
+        italic: false,
+        underline: false,
+        align: 'left',
+        letterSpacing: 0,
+        lineHeight: 1.2,
+      };
+
+      if (id === 'fullName') return { ...base, fontSize: 24, bold: true, color: computedText, lineHeight: 1.1 };
+      if (id === 'jobTitle') return { ...base, fontSize: 14, bold: true, color: state.design.primaryColor, lineHeight: 1.15 };
+      if (id === 'companyName') return { ...base, fontSize: 12, bold: true, color: withAlpha(computedText, 0.78) };
+      if (id === 'tagline') return { ...base, fontSize: 12, color: withAlpha(computedText, 0.62) };
+      if (id.startsWith('contact.')) return { ...base, fontSize: 12, color: withAlpha(computedText, 0.88) };
+      if (id === 'website') return { ...base, fontSize: 12, color: withAlpha(computedText, 0.72), align: 'center' };
+      return base;
+    },
+    [computedText, state.design.primaryColor]
+  );
 
   const backgroundLayers = useMemo(() => {
     const intensity = Math.min(1, Math.max(0, state.design.backgroundIntensity / 100));
@@ -350,46 +558,86 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ state, patchDesign }
   }, [state.design]);
 
   const handleExport = async (format: 'pdf' | 'png' | 'svg') => {
-    if (!cardRef.current) return;
-    const node = cardRef.current;
+    const frontNode = frontExportRef.current;
+    const backNode = backExportRef.current;
+    if (!frontNode || !backNode) return;
+
+    // Best-effort: wait for fonts/layout so exports are stable.
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (document as any).fonts?.ready;
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    } catch {
+      // ignore
+    }
+
+    const downloadDataUrl = (dataUrl: string, filename: string) => {
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = filename;
+      a.click();
+    };
+
+    const downloadSvgString = (svg: string, filename: string) => {
+      const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+    };
 
     if (format === 'pdf') {
-      const canvas = await html2canvas(node, {
-        scale: 4,
-        useCORS: true,
-        backgroundColor: null,
-      });
-      const imgData = canvas.toDataURL('image/png');
+      const [frontCanvas, backCanvas] = await Promise.all([
+        html2canvas(frontNode, {
+          scale: 4,
+          useCORS: true,
+          backgroundColor: null,
+        }),
+        html2canvas(backNode, {
+          scale: 4,
+          useCORS: true,
+          backgroundColor: null,
+        }),
+      ]);
+      const frontImg = frontCanvas.toDataURL('image/png');
+      const backImg = backCanvas.toDataURL('image/png');
       const pdf = new jsPDF({
         orientation: 'landscape',
         unit: 'in',
         format: [3.5, 2],
       });
-      pdf.addImage(imgData, 'PNG', 0, 0, 3.5, 2);
+      pdf.addImage(frontImg, 'PNG', 0, 0, 3.5, 2);
+      pdf.addPage([3.5, 2], 'landscape');
+      pdf.addImage(backImg, 'PNG', 0, 0, 3.5, 2);
       pdf.save('business-card.pdf');
       return;
     }
 
     if (format === 'png') {
-      const dataUrl = await toPng(node, {
-        pixelRatio: 3,
-        cacheBust: true,
-      });
-      const a = document.createElement('a');
-      a.href = dataUrl;
-      a.download = 'business-card.png';
-      a.click();
+      const [frontUrl, backUrl] = await Promise.all([
+        toPng(frontNode, {
+          pixelRatio: 3,
+          cacheBust: true,
+        }),
+        toPng(backNode, {
+          pixelRatio: 3,
+          cacheBust: true,
+        }),
+      ]);
+
+      downloadDataUrl(frontUrl, 'business-card-front.png');
+      downloadDataUrl(backUrl, 'business-card-back.png');
       return;
     }
 
-    const svg = await toSvg(node, { cacheBust: true });
-    const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'business-card.svg';
-    a.click();
-    URL.revokeObjectURL(url);
+    const [frontSvg, backSvg] = await Promise.all([
+      toSvg(frontNode, { cacheBust: true }),
+      toSvg(backNode, { cacheBust: true }),
+    ]);
+    downloadSvgString(frontSvg, 'business-card-front.svg');
+    downloadSvgString(backSvg, 'business-card-back.svg');
   };
 
   const cardAspect = 'aspect-[7/4]';
@@ -481,19 +729,19 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ state, patchDesign }
       return (
         <div className="relative h-full flex flex-col items-center justify-between text-center">
           <div className="w-full">
-            <div className={`${nameClass} font-semibold tracking-tight`}>{state.data.fullName || 'Your Name'}</div>
-            <div className={`${titleClass} font-medium mt-2`} style={{ color: state.design.primaryColor }}>
+            <div data-el="fullName" className={`${nameClass} font-semibold tracking-tight`}>{state.data.fullName || 'Your Name'}</div>
+            <div data-el="jobTitle" className={`${titleClass} font-medium mt-2`} style={{ color: state.design.primaryColor }}>
               {state.data.jobTitle || 'Job Title'}
             </div>
             <div className={`${metaClass} mt-2`} style={{ color: withAlpha(computedText, 0.72) }}>
-              {state.data.companyName || 'Company'}
-              {state.data.tagline ? ` · ${state.data.tagline}` : ''}
+              <span data-el="companyName">{state.data.companyName || 'Company'}</span>
+              {state.data.tagline ? <span data-el="tagline">{` · ${state.data.tagline}`}</span> : ''}
             </div>
           </div>
 
           <div className={`${contactText} w-full`} style={{ display: 'grid', gap: spacing }}>
             {contactItems.map((it) => (
-              <div key={it.k} className="flex items-start justify-center gap-2">
+              <div key={it.k} data-el={`contact.${it.k}`} className="flex items-start justify-center gap-2">
                 {state.design.iconStyle === 'minimal' ? (
                   <span className="mt-1.5 inline-block h-2.5 w-2.5 rounded-full" style={{ background: withAlpha(state.design.primaryColor, 0.75) }} />
                 ) : (
@@ -517,17 +765,17 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ state, patchDesign }
         <div className="relative h-full grid" style={{ gridTemplateRows: 'auto 1fr auto', gap: spacing }}>
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className={`${nameClass} font-semibold tracking-tight`}>{state.data.fullName || 'Your Name'}</div>
-              <div className={`${titleClass} font-medium mt-2`} style={{ color: state.design.primaryColor }}>
+              <div data-el="fullName" className={`${nameClass} font-semibold tracking-tight`}>{state.data.fullName || 'Your Name'}</div>
+              <div data-el="jobTitle" className={`${titleClass} font-medium mt-2`} style={{ color: state.design.primaryColor }}>
                 {state.data.jobTitle || 'Job Title'}
               </div>
             </div>
             <div className="text-right">
-              <div className={`${metaClass} font-semibold`} style={{ color: withAlpha(computedText, 0.78) }}>
+              <div data-el="companyName" className={`${metaClass} font-semibold`} style={{ color: withAlpha(computedText, 0.78) }}>
                 {state.data.companyName || 'Company'}
               </div>
               {state.data.tagline ? (
-                <div className={`${metaClass} mt-1`} style={{ color: withAlpha(computedText, 0.62) }}>
+                <div data-el="tagline" className={`${metaClass} mt-1`} style={{ color: withAlpha(computedText, 0.62) }}>
                   {state.data.tagline}
                 </div>
               ) : null}
@@ -538,7 +786,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ state, patchDesign }
 
           <div className={`${contactText}`} style={{ display: 'grid', gap: spacing }}>
             {contactItems.map((it) => (
-              <div key={it.k} className="flex items-start gap-2">
+              <div key={it.k} data-el={`contact.${it.k}`} className="flex items-start gap-2">
                 {state.design.iconStyle === 'minimal' ? (
                   <span className="mt-1.5 inline-block h-2.5 w-2.5 rounded-full" style={{ background: withAlpha(state.design.primaryColor, 0.75) }} />
                 ) : (
@@ -562,22 +810,23 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ state, patchDesign }
         <div className="relative h-full flex flex-col justify-between">
           <div>
             <div
+              data-el="companyName"
               className="inline-flex rounded-2xl px-3 py-2 text-xs font-semibold"
               style={{ background: withAlpha(state.design.accentColor, 0.16), border: '1px solid var(--border)' }}
             >
               {state.data.companyName || 'Company'}
             </div>
-            <div className={`${mode === 'export' ? 'text-4xl' : 'text-2xl sm:text-3xl'} font-semibold tracking-tight mt-3`}>
+            <div data-el="fullName" className={`${mode === 'export' ? 'text-4xl' : 'text-2xl sm:text-3xl'} font-semibold tracking-tight mt-3`}>
               {state.data.fullName || 'Your Name'}
             </div>
-            <div className={`${titleClass} font-medium mt-2`} style={{ color: state.design.primaryColor }}>
+            <div data-el="jobTitle" className={`${titleClass} font-medium mt-2`} style={{ color: state.design.primaryColor }}>
               {state.data.jobTitle || 'Job Title'}
             </div>
           </div>
 
           <div className={`${contactText}`} style={{ display: 'grid', gap: spacing }}>
             {contactItems.slice(0, 3).map((it) => (
-              <div key={it.k} className="flex items-start gap-2">
+              <div key={it.k} data-el={`contact.${it.k}`} className="flex items-start gap-2">
                 {state.design.iconStyle === 'minimal' ? (
                   <span className="mt-1.5 inline-block h-2.5 w-2.5 rounded-full" style={{ background: withAlpha(state.design.primaryColor, 0.75) }} />
                 ) : (
@@ -600,13 +849,13 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ state, patchDesign }
       return (
         <div className="relative h-full flex flex-col justify-between">
           <div>
-            <div className={`${nameClass} font-semibold tracking-tight`}>{state.data.fullName || 'Your Name'}</div>
-            <div className={`${titleClass} font-medium mt-2`} style={{ color: state.design.primaryColor }}>
+            <div data-el="fullName" className={`${nameClass} font-semibold tracking-tight`}>{state.data.fullName || 'Your Name'}</div>
+            <div data-el="jobTitle" className={`${titleClass} font-medium mt-2`} style={{ color: state.design.primaryColor }}>
               {state.data.jobTitle || 'Job Title'}
             </div>
             <div className={`${metaClass} mt-2`} style={{ color: withAlpha(computedText, 0.72) }}>
-              {state.data.companyName || 'Company'}
-              {state.data.tagline ? ` · ${state.data.tagline}` : ''}
+              <span data-el="companyName">{state.data.companyName || 'Company'}</span>
+              {state.data.tagline ? <span data-el="tagline">{` · ${state.data.tagline}`}</span> : ''}
             </div>
           </div>
 
@@ -614,7 +863,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ state, patchDesign }
 
           <div className={`${contactText}`} style={{ display: 'grid', gap: spacing }}>
             {contactItems.map((it) => (
-              <div key={it.k} className="flex items-start gap-2">
+              <div key={it.k} data-el={`contact.${it.k}`} className="flex items-start gap-2">
                 {state.design.iconStyle === 'minimal' ? (
                   <span className="mt-1.5 inline-block h-2.5 w-2.5 rounded-full" style={{ background: withAlpha(state.design.primaryColor, 0.75) }} />
                 ) : (
@@ -637,19 +886,19 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ state, patchDesign }
     return (
       <div className="relative h-full flex flex-col justify-between">
         <div>
-          <div className={`${nameClass} font-semibold tracking-tight`}>{state.data.fullName || 'Your Name'}</div>
-          <div className={`${titleClass} font-medium mt-1`} style={{ color: state.design.primaryColor }}>
+          <div data-el="fullName" className={`${nameClass} font-semibold tracking-tight`}>{state.data.fullName || 'Your Name'}</div>
+          <div data-el="jobTitle" className={`${titleClass} font-medium mt-1`} style={{ color: state.design.primaryColor }}>
             {state.data.jobTitle || 'Job Title'}
           </div>
           <div className={`${metaClass} mt-1`} style={{ color: withAlpha(computedText, 0.72) }}>
-            {state.data.companyName || 'Company'}
-            {state.data.tagline ? ` · ${state.data.tagline}` : ''}
+            <span data-el="companyName">{state.data.companyName || 'Company'}</span>
+            {state.data.tagline ? <span data-el="tagline">{` · ${state.data.tagline}`}</span> : ''}
           </div>
         </div>
 
         <div className={`${contactText}`} style={{ display: 'grid', gap: spacing }}>
           {contactItems.map((it) => (
-            <div key={it.k} className="flex items-start gap-2">
+            <div key={it.k} data-el={`contact.${it.k}`} className="flex items-start gap-2">
               {state.design.iconStyle === 'minimal' ? (
                 <span className="mt-1.5 inline-block h-2.5 w-2.5 rounded-full" style={{ background: withAlpha(state.design.primaryColor, 0.75) }} />
               ) : (
@@ -685,6 +934,440 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ state, patchDesign }
         return `${base} inset-0 grid place-items-center`;
     }
   }, [state.design.logoPosition]);
+
+  const captureSideLayout = useCallback(
+    (s: CardSide) => {
+      const ref = getInnerRef(s).current;
+      if (!ref) return;
+
+      const sl = s === 'front' ? layoutRoot.front : layoutRoot.back;
+      const rect = ref.getBoundingClientRect();
+      if (rect.width < 10 || rect.height < 10) return;
+
+      const found: Record<string, ElementBox> = {};
+      const nodes = Array.from(ref.querySelectorAll<HTMLElement>('[data-el]'));
+      nodes.forEach((node, index) => {
+        const id = node.dataset.el;
+        if (!id) return;
+        const r = node.getBoundingClientRect();
+        const existing = sl?.elements?.[id];
+        found[id] = {
+          x: r.left - rect.left,
+          y: r.top - rect.top,
+          w: Math.max(4, r.width),
+          h: Math.max(4, r.height),
+          rotate: existing?.rotate ?? 0,
+          z: existing?.z ?? 20 + index,
+        };
+      });
+
+      const nextElements = {
+        ...(sl?.elements ?? {}),
+        ...Object.fromEntries(
+          Object.entries(found).map(([id, box]) => {
+            // Only override missing boxes; keep user adjustments.
+            const existing = sl?.elements?.[id];
+            return [id, existing ?? box];
+          })
+        ),
+      };
+
+      const nextSide = {
+        ...(sl ?? { elements: {} }),
+        elements: nextElements,
+        baseW: sl?.baseW ?? rect.width,
+        baseH: sl?.baseH ?? rect.height,
+        templateId: state.design.template,
+        padding,
+      };
+
+      // Default editable background image box (fills inner area).
+      const hasBgImage = s === 'front'
+        ? state.design.backgroundStyle === 'image' && !!state.design.backgroundImage
+        : state.design.backBackgroundStyle === 'image' && !!state.design.backBackgroundImage;
+      if (hasBgImage && !nextSide.backgroundImage) {
+        nextSide.backgroundImage = { x: 0, y: 0, w: rect.width, h: rect.height, rotate: 0, z: 0 };
+      }
+
+      patchLayoutSide(s, nextSide);
+    },
+    [getInnerRef, layoutRoot.back, layoutRoot.front, padding, patchLayoutSide, state.design.backgroundImage, state.design.backgroundStyle, state.design.backBackgroundImage, state.design.backBackgroundStyle, state.design.template]
+  );
+
+  useEffect(() => {
+    if (!editMode) return;
+    const sl = sideLayout;
+    const needsCapture = !sl?.baseW || sl?.templateId !== state.design.template || sl?.padding !== padding;
+    if (!needsCapture) return;
+    const id = requestAnimationFrame(() => captureSideLayout(side));
+    return () => cancelAnimationFrame(id);
+  }, [captureSideLayout, editMode, padding, side, sideLayout, state.design.template]);
+
+  const renderTextValue = useCallback(
+    (id: string) => {
+      if (id.startsWith('contact.')) {
+        const k = id.slice('contact.'.length) as keyof CardData;
+        return (state.data[k] as string) || '';
+      }
+      const field = elementField(id);
+      if (!field) return '';
+      return (state.data[field] as string) || '';
+    },
+    [elementField, state.data]
+  );
+
+  const renderManualLayer = (s: CardSide, mode: 'screen' | 'export', containerW?: number, containerH?: number) => {
+      const sl = s === 'front' ? layoutRoot.front : layoutRoot.back;
+      const { sx, sy } = getScaleForSide(s, containerW, containerH);
+      const isInteractive = mode === 'screen' && editMode;
+
+      const textStyleFor = (id: string): ElementTextStyle => {
+        const stored = sl?.textStyles?.[id];
+        return stored ?? defaultTextStyle(id);
+      };
+
+      const commonTextStyle = (id: string): React.CSSProperties => {
+        const st = textStyleFor(id);
+        return {
+          fontSize: st.fontSize,
+          color: st.color,
+          fontWeight: st.bold ? 700 : 500,
+          fontStyle: st.italic ? 'italic' : 'normal',
+          textDecoration: st.underline ? 'underline' : 'none',
+          letterSpacing: `${st.letterSpacing}px`,
+          lineHeight: st.lineHeight,
+          textAlign: st.align,
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: st.align === 'center' ? 'center' : st.align === 'right' ? 'flex-end' : 'flex-start',
+          overflow: 'hidden',
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
+          userSelect: isInteractive ? 'none' : 'auto',
+        };
+      };
+
+      const setBoxFromCurrent = (id: string, boxInCurrent: ElementBox) => {
+        const base: ElementBox = {
+          ...boxInCurrent,
+          x: boxInCurrent.x / sx,
+          y: boxInCurrent.y / sy,
+          w: boxInCurrent.w / sx,
+          h: boxInCurrent.h / sy,
+        };
+        setElementBox(s, id, {
+          ...base,
+          x: snapNumber(base.x),
+          y: snapNumber(base.y),
+          w: Math.max(gridStep, snapNumber(base.w)),
+          h: Math.max(gridStep, snapNumber(base.h)),
+        });
+      };
+
+      const setBgFromCurrent = (boxInCurrent: ElementBox) => {
+        const base: ElementBox = {
+          ...boxInCurrent,
+          x: boxInCurrent.x / sx,
+          y: boxInCurrent.y / sy,
+          w: boxInCurrent.w / sx,
+          h: boxInCurrent.h / sy,
+        };
+        setBackgroundImageBox(s, {
+          ...base,
+          x: snapNumber(base.x),
+          y: snapNumber(base.y),
+          w: Math.max(gridStep, snapNumber(base.w)),
+          h: Math.max(gridStep, snapNumber(base.h)),
+        });
+      };
+
+      const renderEditableText = (id: string, placeholder: string) => {
+        const value = renderTextValue(id) || placeholder;
+        if (isInteractive && editingId === id && patchData) {
+          return (
+            <input
+              autoFocus
+              className="ui-input h-full w-full"
+              value={draftText}
+              placeholder={placeholder}
+              onChange={(e) => setDraftText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  setEditingId(null);
+                  return;
+                }
+                if (e.key === 'Enter') {
+                  const field = elementField(id);
+                  if (field) patchData({ [field]: draftText } as Partial<CardData>);
+                  setEditingId(null);
+                }
+              }}
+              onBlur={() => {
+                const field = elementField(id);
+                if (field) patchData({ [field]: draftText } as Partial<CardData>);
+                setEditingId(null);
+              }}
+            />
+          );
+        }
+        return (
+          <div
+            className="h-full w-full"
+            style={commonTextStyle(id)}
+            onDoubleClick={() => {
+              if (!isInteractive) return;
+              const field = elementField(id);
+              if (!field || !patchData) return;
+              setEditingId(id);
+              setDraftText((state.data[field] as string) || '');
+            }}
+          >
+            {value}
+          </div>
+        );
+      };
+
+      // Background image layer
+      const bgSrc = s === 'front' ? state.design.backgroundImage : state.design.backBackgroundImage;
+      const bgEnabled = s === 'front'
+        ? state.design.backgroundStyle === 'image' && !!bgSrc
+        : state.design.backBackgroundStyle === 'image' && !!bgSrc;
+
+      const bgBox = sl?.backgroundImage;
+
+      const items: Array<{ id: string; kind: 'text' | 'logo' | 'qr' | 'contact'; render: () => React.ReactNode }> = [];
+
+      if (s === 'front') {
+        items.push({ id: 'fullName', kind: 'text', render: () => renderEditableText('fullName', 'Your Name') });
+        items.push({ id: 'jobTitle', kind: 'text', render: () => renderEditableText('jobTitle', 'Job Title') });
+        items.push({ id: 'companyName', kind: 'text', render: () => renderEditableText('companyName', 'Company') });
+        items.push({ id: 'tagline', kind: 'text', render: () => renderEditableText('tagline', '') });
+
+        contactItems.forEach((it) => {
+          items.push({
+            id: `contact.${it.k}`,
+            kind: 'contact',
+            render: () => (
+              <div className="h-full w-full flex items-start gap-2" style={{ color: withAlpha(computedText, 0.88), lineHeight: 1.2 }}>
+                {state.design.iconStyle === 'minimal' ? (
+                  <span className="mt-1.5 inline-block h-2.5 w-2.5 rounded-full" style={{ background: withAlpha(state.design.primaryColor, 0.75) }} />
+                ) : (
+                  <span
+                    className="mt-0.5 inline-flex items-center justify-center h-7 w-7 rounded-xl"
+                    style={contactIcon.wrapperBase}
+                  >
+                    {contactIcon.get(it.k)}
+                  </span>
+                )}
+                <div className="flex-1">
+                  {renderEditableText(`contact.${it.k}`, '')}
+                </div>
+              </div>
+            ),
+          });
+        });
+
+        if (state.data.logo) {
+          items.push({
+            id: 'logo',
+            kind: 'logo',
+            render: () => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={state.data.logo}
+                alt="Logo"
+                className="h-full w-full rounded-xl object-contain bg-white/70"
+                style={{ border: '1px solid var(--border)' }}
+              />
+            ),
+          });
+        }
+      } else {
+        items.push({ id: 'companyName', kind: 'text', render: () => renderEditableText('companyName', 'Company') });
+
+        if (state.data.logo) {
+          items.push({
+            id: 'logo',
+            kind: 'logo',
+            render: () => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={state.data.logo}
+                alt="Logo"
+                className="h-full w-full rounded-2xl object-contain bg-white/75"
+                style={{ border: '1px solid var(--border)' }}
+              />
+            ),
+          });
+        }
+
+        if (state.design.showQr && qrDataUrl) {
+          items.push({
+            id: 'qr',
+            kind: 'qr',
+            render: () => (
+              <div className="h-full w-full grid place-items-center rounded-2xl bg-white" style={{ border: '1px solid var(--border)' }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={qrDataUrl} alt="QR code" className="h-full w-full object-contain" />
+              </div>
+            ),
+          });
+        }
+
+        items.push({ id: 'website', kind: 'text', render: () => renderEditableText('website', '') });
+      }
+
+      const sorted = items
+        .map((it) => ({ it, box: sl?.elements?.[it.id] }))
+        .filter((x) => !!x.box)
+        .sort((a, b) => (a.box!.z ?? 0) - (b.box!.z ?? 0));
+
+      const startRotate =
+        (id: string, current: ElementBox, commit: (angle: number) => void) =>
+        (e: React.PointerEvent) => {
+        if (!isInteractive) return;
+        e.preventDefault();
+        e.stopPropagation();
+        setSelectedId(id);
+
+        const parentEl = getInnerRef(s).current;
+        if (!parentEl) return;
+        const parentRect = parentEl.getBoundingClientRect();
+
+        const cx = (current.x * sx + (current.w * sx) / 2);
+        const cy = (current.y * sy + (current.h * sy) / 2);
+
+        const onMove = (ev: PointerEvent) => {
+          const px = ev.clientX - parentRect.left;
+          const py = ev.clientY - parentRect.top;
+          const angle = (Math.atan2(py - cy, px - cx) * 180) / Math.PI;
+          setRotationDraft((d) => ({ ...d, [id]: angle }));
+        };
+        const onUp = () => {
+          window.removeEventListener('pointermove', onMove);
+          window.removeEventListener('pointerup', onUp);
+          setRotationDraft((d) => {
+            const next = { ...d };
+            const angle = next[id];
+            delete next[id];
+            if (typeof angle === 'number') {
+              commit(angle);
+            }
+            return next;
+          });
+        };
+
+        window.addEventListener('pointermove', onMove);
+        window.addEventListener('pointerup', onUp);
+      };
+
+      return (
+        <>
+          {bgEnabled && bgSrc && bgBox ? (
+            <Rnd
+              bounds="parent"
+              disableDragging={!isInteractive}
+              enableResizing={isInteractive && selectedId === 'backgroundImage'}
+              size={{ width: bgBox.w * sx, height: bgBox.h * sy }}
+              position={{ x: bgBox.x * sx, y: bgBox.y * sy }}
+              style={{ zIndex: bgBox.z ?? 0 }}
+              onDragStart={() => setSelectedId('backgroundImage')}
+              onDragStop={(_, d) => {
+                setBgFromCurrent({ ...bgBox, x: d.x, y: d.y, w: bgBox.w * sx, h: bgBox.h * sy } as ElementBox);
+              }}
+              onResizeStop={(_, __, ref, ___, pos) => {
+                const w = ref.offsetWidth;
+                const h = ref.offsetHeight;
+                setBgFromCurrent({ ...bgBox, x: pos.x, y: pos.y, w, h } as ElementBox);
+              }}
+            >
+              <div
+                className={`absolute inset-0 ${selectedId === 'backgroundImage' && isInteractive ? 'ring-2 ring-teal-500/60' : ''}`}
+                onMouseDown={() => setSelectedId('backgroundImage')}
+                style={{ overflow: 'hidden', borderRadius: 0 }}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={bgSrc}
+                  alt="Background"
+                  className="h-full w-full"
+                  style={{ objectFit: 'cover', transform: `rotate(${rotationDraft['backgroundImage'] ?? bgBox.rotate}deg)` }}
+                />
+                {isInteractive && selectedId === 'backgroundImage' ? (
+                  <div
+                    className="absolute -top-7 left-1/2 -translate-x-1/2 h-6 w-6 rounded-full ui-surface grid place-items-center cursor-grab"
+                    onPointerDown={startRotate('backgroundImage', bgBox, (angle) => setBackgroundImageBox(s, { ...bgBox, rotate: angle }))}
+                    style={{ border: '1px solid var(--border)' }}
+                    title="Rotate"
+                  >
+                    <Icon name="RotateCw" size="input" decorative />
+                  </div>
+                ) : null}
+              </div>
+            </Rnd>
+          ) : null}
+
+          {sorted.map(({ it, box }) => {
+            const b = box!;
+            const rotate = rotationDraft[it.id] ?? b.rotate;
+            const isSelected = selectedId === it.id;
+
+            return (
+              <Rnd
+                key={it.id}
+                bounds="parent"
+                disableDragging={!isInteractive}
+                enableResizing={isInteractive && isSelected}
+                size={{ width: b.w * sx, height: b.h * sy }}
+                position={{ x: b.x * sx, y: b.y * sy }}
+                style={{ zIndex: b.z ?? 20 }}
+                onDragStart={() => {
+                  setSelectedId(it.id);
+                  setEditingId(null);
+                }}
+                onDragStop={(_, d) => {
+                  setBoxFromCurrent(it.id, { ...b, x: d.x, y: d.y, w: b.w * sx, h: b.h * sy, rotate } as ElementBox);
+                }}
+                onResizeStart={() => {
+                  setSelectedId(it.id);
+                  setEditingId(null);
+                }}
+                onResizeStop={(_, __, ref, ___, pos) => {
+                  const w = ref.offsetWidth;
+                  const h = ref.offsetHeight;
+                  setBoxFromCurrent(it.id, { ...b, x: pos.x, y: pos.y, w, h, rotate } as ElementBox);
+                }}
+              >
+                <div
+                  className={`relative h-full w-full ${isInteractive && isSelected ? 'ring-2 ring-teal-500/60' : ''}`}
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                    setSelectedId(it.id);
+                  }}
+                >
+                  <div className="absolute inset-0" style={{ transform: `rotate(${rotate}deg)`, transformOrigin: 'center center' }}>
+                    {it.render()}
+                  </div>
+
+                  {isInteractive && isSelected && it.kind === 'logo' ? (
+                    <div
+                      className="absolute -top-7 left-1/2 -translate-x-1/2 h-6 w-6 rounded-full ui-surface grid place-items-center cursor-grab"
+                      onPointerDown={startRotate(it.id, b, (angle) => setElementBox(s, it.id, { ...b, rotate: angle }))}
+                      style={{ border: '1px solid var(--border)' }}
+                      title="Rotate"
+                    >
+                      <Icon name="RotateCw" size="input" decorative />
+                    </div>
+                  ) : null}
+                </div>
+              </Rnd>
+            );
+          })}
+        </>
+      );
+    };
 
   return (
     <div className="w-full h-full flex flex-col bg-canvas">
@@ -724,13 +1407,39 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ state, patchDesign }
               </button>
             </div>
 
+            {undo && redo ? (
+              <>
+                <div className="h-8 w-px bg-border hidden lg:block" />
+                <div className="flex items-center gap-1 p-1 rounded-xl ui-surface-2">
+                  <button
+                    type="button"
+                    onClick={undo}
+                    disabled={!canUndo}
+                    className="inline-flex items-center justify-center rounded-lg px-2.5 py-2 hover:bg-surface-3 transition-all disabled:opacity-40"
+                    title="Undo"
+                  >
+                    <Icon name="Undo2" size="input" decorative />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={redo}
+                    disabled={!canRedo}
+                    className="inline-flex items-center justify-center rounded-lg px-2.5 py-2 hover:bg-surface-3 transition-all disabled:opacity-40"
+                    title="Redo"
+                  >
+                    <Icon name="Redo2" size="input" decorative />
+                  </button>
+                </div>
+              </>
+            ) : null}
+
             <div className="flex items-center gap-1 p-1 rounded-xl ui-surface-2">
               <button
                 type="button"
                 onClick={() => patchDesign({ showSafeMargins: !state.design.showSafeMargins })}
                 className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-semibold transition-all ${
                   state.design.showSafeMargins 
-                    ? 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-300' 
+                    ? 'bg-teal-500/15 text-teal-600 dark:text-teal-300' 
                     : 'hover:bg-surface-3'
                 }`}
               >
@@ -742,7 +1451,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ state, patchDesign }
                 onClick={() => patchDesign({ showBleed: !state.design.showBleed })}
                 className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-semibold transition-all ${
                   state.design.showBleed 
-                    ? 'bg-pink-500/15 text-pink-600 dark:text-pink-300' 
+                    ? 'bg-orange-500/15 text-orange-600 dark:text-orange-300' 
                     : 'hover:bg-surface-3'
                 }`}
               >
@@ -754,7 +1463,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ state, patchDesign }
                 onClick={() => patchDesign({ showGrid: !state.design.showGrid })}
                 className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-semibold transition-all ${
                   state.design.showGrid 
-                    ? 'bg-purple-500/15 text-purple-600 dark:text-purple-300' 
+                    ? 'bg-sky-500/15 text-sky-600 dark:text-sky-300' 
                     : 'hover:bg-surface-3'
                 }`}
               >
@@ -762,13 +1471,36 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ state, patchDesign }
                 <span className="hidden lg:inline">Grid</span>
               </button>
             </div>
+
+            <div className="flex items-center gap-1 p-1 rounded-xl ui-surface-2">
+              <button
+                type="button"
+                onClick={() => setEditMode((m) => !m)}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-semibold transition-all ${
+                  editMode ? 'bg-teal-500/15 text-teal-600 dark:text-teal-300' : 'hover:bg-surface-3'
+                }`}
+                title={editMode ? 'Exit edit mode' : 'Enter edit mode'}
+              >
+                <Icon name={editMode ? 'MousePointer2' : 'Move'} size="input" decorative />
+                <span className="hidden lg:inline">Edit</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => resetLayoutSide(side)}
+                className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-semibold hover:bg-surface-3 transition-all"
+                title="Reset manual layout"
+              >
+                <Icon name="RefreshCcw" size="input" decorative />
+                <span className="hidden lg:inline">Reset</span>
+              </button>
+            </div>
           </div>
 
           <button
             type="button"
             onClick={() => setExportOpen(true)}
-            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold text-white bg-linear-to-r from-indigo-500 via-purple-500 to-pink-500 hover:opacity-95 transition-all hover-lift animate-pulse-glow"
-            style={{ boxShadow: '0 4px 16px rgba(139, 92, 246, 0.35)' }}
+            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold text-white bg-linear-to-r from-teal-500 via-sky-500 to-orange-500 hover:opacity-95 transition-all hover-lift animate-pulse-glow"
+            style={{ boxShadow: '0 4px 16px rgba(14, 165, 233, 0.35)' }}
           >
               <Icon name="Download" size="button" decorative /> Export
           </button>
@@ -813,22 +1545,41 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ state, patchDesign }
                   {backgroundLayers}
 
                   {/* Content */}
-                  <div className="relative w-full h-full" style={{ padding }}>
-                    {state.data.logo ? (
-                      <div className={logoPlacement}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={state.data.logo}
-                          alt="Logo"
-                          className="h-10 w-10 rounded-xl object-contain bg-white/70"
-                          style={{ border: '1px solid var(--border)' }}
-                        />
+                  <div
+                    ref={frontInnerRef}
+                    className="relative w-full h-full"
+                    style={{ padding }}
+                    onMouseDown={() => {
+                      if (!editMode) return;
+                      setSelectedId(null);
+                      setEditingId(null);
+                    }}
+                  >
+                    {/* Base template content kept for capture; hidden when manual overlay active */}
+                    <div style={manualFrontActive ? { opacity: 0, pointerEvents: 'none' } : undefined}>
+                      {state.data.logo ? (
+                        <div data-el="logo" className={logoPlacement}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={state.data.logo}
+                            alt="Logo"
+                            className="h-10 w-10 rounded-xl object-contain bg-white/70"
+                            style={{ border: '1px solid var(--border)' }}
+                          />
+                        </div>
+                      ) : null}
+
+                      <div className="relative h-full flex flex-col justify-between">
+                        {frontContent('screen')}
+                      </div>
+                    </div>
+
+                    {/* Manual layer (draggable/resizable elements + editable background image) */}
+                    {manualFrontActive ? (
+                      <div className="absolute inset-0">
+                        {renderManualLayer('front', 'screen', frontInnerSize.w, frontInnerSize.h)}
                       </div>
                     ) : null}
-
-                    <div className="relative h-full flex flex-col justify-between">
-                      {frontContent('screen')}
-                    </div>
 
                     {/* Print overlays */}
                     {state.design.showSafeMargins ? (
@@ -874,7 +1625,16 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ state, patchDesign }
                     border: '1px solid var(--border)',
                   }}
                 >
-                  <div className="relative w-full h-full" style={{ padding }}>
+                  <div
+                    ref={backInnerRef}
+                    className="relative w-full h-full"
+                    style={{ padding }}
+                    onMouseDown={() => {
+                      if (!editMode) return;
+                      setSelectedId(null);
+                      setEditingId(null);
+                    }}
+                  >
                     {state.design.backBackgroundStyle !== 'image' && state.design.backBackgroundStyle !== 'preset' && (
                       <div
                         className="absolute inset-0 opacity-70"
@@ -885,45 +1645,55 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ state, patchDesign }
                       />
                     )}
 
-                    <div className="relative h-full grid place-items-center text-center">
-                      <div>
-                        <div className="text-sm font-semibold" style={{ color: withAlpha(computedText, 0.80) }}>
-                          {state.data.companyName || 'Company'}
-                        </div>
-
-                        <div className="mt-2">
-                          {state.data.logo ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={state.data.logo}
-                              alt="Logo"
-                              className="h-14 w-14 rounded-2xl object-contain bg-white/75 mx-auto"
-                              style={{ border: '1px solid var(--border)' }}
-                            />
-                          ) : (
-                            <div
-                              className="inline-flex items-center justify-center h-14 w-14 rounded-2xl"
-                              style={{ background: withAlpha(state.design.accentColor, 0.18), border: '1px solid var(--border)' }}
-                            >
-                              <div className="text-xl font-semibold" style={{ color: state.design.primaryColor }}>
-                                {state.data.companyName?.slice(0, 1) || 'C'}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-
-                        {state.design.showQr && qrDataUrl ? (
-                          <div className="mt-3 inline-flex items-center justify-center rounded-2xl bg-white p-2" style={{ border: '1px solid var(--border)' }}>
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={qrDataUrl} alt="QR code" className="h-20 w-20" />
+                    <div style={manualBackActive ? { opacity: 0, pointerEvents: 'none' } : undefined}>
+                      <div className="relative h-full grid place-items-center text-center">
+                        <div>
+                          <div data-el="companyName" className="text-sm font-semibold" style={{ color: withAlpha(computedText, 0.80) }}>
+                            {state.data.companyName || 'Company'}
                           </div>
-                        ) : null}
 
-                        <div className="mt-3 text-xs" style={{ color: withAlpha(computedText, 0.72) }}>
-                          {state.data.website}
+                          <div className="mt-2">
+                            {state.data.logo ? (
+                              <div data-el="logo">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={state.data.logo}
+                                  alt="Logo"
+                                  className="h-14 w-14 rounded-2xl object-contain bg-white/75 mx-auto"
+                                  style={{ border: '1px solid var(--border)' }}
+                                />
+                              </div>
+                            ) : (
+                              <div
+                                className="inline-flex items-center justify-center h-14 w-14 rounded-2xl"
+                                style={{ background: withAlpha(state.design.accentColor, 0.18), border: '1px solid var(--border)' }}
+                              >
+                                <div className="text-xl font-semibold" style={{ color: state.design.primaryColor }}>
+                                  {state.data.companyName?.slice(0, 1) || 'C'}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {state.design.showQr && qrDataUrl ? (
+                            <div data-el="qr" className="mt-3 inline-flex items-center justify-center rounded-2xl bg-white p-2" style={{ border: '1px solid var(--border)' }}>
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={qrDataUrl} alt="QR code" className="h-20 w-20" />
+                            </div>
+                          ) : null}
+
+                          <div data-el="website" className="mt-3 text-xs" style={{ color: withAlpha(computedText, 0.72) }}>
+                            {state.data.website}
+                          </div>
                         </div>
                       </div>
                     </div>
+
+                    {manualBackActive ? (
+                      <div className="absolute inset-0">
+                        {renderManualLayer('back', 'screen', backInnerSize.w, backInnerSize.h)}
+                      </div>
+                    ) : null}
 
                     {state.design.showSafeMargins ? (
                       <div
@@ -980,9 +1750,9 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ state, patchDesign }
         }}
       />
 
-      {/* Off-screen export node (flat; matches current side) */}
+      {/* Off-screen export nodes (front + back) */}
       <div
-        ref={cardRef}
+        ref={frontExportRef}
         aria-hidden
         style={{
           position: 'fixed',
@@ -1002,40 +1772,77 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ state, patchDesign }
             border: '1px solid var(--border)',
           }}
         >
-          {side === 'front' ? (
-            <div className="relative w-full h-full" style={{ padding }}>
-              {backgroundLayers}
+          <div className="relative w-full h-full" style={{ padding }}>
+            {backgroundLayers}
+            {manualFrontActive ? (
+              <div className="absolute inset-0">
+                {renderManualLayer('front', 'export', exportSize.width - padding * 2, exportSize.height - padding * 2)}
+              </div>
+            ) : (
+              <>
+                {state.data.logo ? (
+                  <div className={logoPlacement}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={state.data.logo}
+                      alt="Logo"
+                      className="h-12 w-12 rounded-2xl object-contain bg-white/70"
+                      style={{ border: '1px solid var(--border)' }}
+                    />
+                  </div>
+                ) : null}
 
-              {state.data.logo ? (
-                <div className={logoPlacement}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={state.data.logo}
-                    alt="Logo"
-                    className="h-12 w-12 rounded-2xl object-contain bg-white/70"
-                    style={{ border: '1px solid var(--border)' }}
-                  />
-                </div>
-              ) : null}
+                {frontContent('export')}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
 
-              {frontContent('export')}
-            </div>
-          ) : (
-            <div className="relative w-full h-full" style={{ padding }}>
-              <div
-                className="absolute inset-0 opacity-70"
-                style={{
-                  backgroundImage: `radial-gradient(${withAlpha(state.design.primaryColor, 0.25)} 1px, transparent 1px)`,
-                  backgroundSize: '22px 22px',
-                }}
-              />
+      <div
+        ref={backExportRef}
+        aria-hidden
+        style={{
+          position: 'fixed',
+          left: -20000,
+          top: 0,
+          width: exportSize.width,
+          height: exportSize.height,
+        }}
+      >
+        <div
+          className="w-full h-full overflow-hidden"
+          style={{
+            borderRadius: `${state.design.borderRadius}px`,
+            background: backBackground,
+            color: computedText,
+            fontFamily: fontFamily(state.design.font),
+            border: '1px solid var(--border)',
+          }}
+        >
+          <div className="relative w-full h-full" style={{ padding }}>
+            <div
+              className="absolute inset-0 opacity-70"
+              style={{
+                backgroundImage: `radial-gradient(${withAlpha(state.design.primaryColor, 0.25)} 1px, transparent 1px)`,
+                backgroundSize: '22px 22px',
+              }}
+            />
+            {manualBackActive ? (
+              <div className="absolute inset-0">
+                {renderManualLayer('back', 'export', exportSize.width - padding * 2, exportSize.height - padding * 2)}
+              </div>
+            ) : (
               <div className="relative h-full grid place-items-center text-center">
                 <div>
                   <div className="text-base font-semibold" style={{ color: withAlpha(computedText, 0.80) }}>
                     {state.data.companyName || 'Company'}
                   </div>
                   {state.design.showQr && qrDataUrl ? (
-                    <div className="mt-4 inline-flex items-center justify-center rounded-2xl bg-white p-3" style={{ border: '1px solid var(--border)' }}>
+                    <div
+                      className="mt-4 inline-flex items-center justify-center rounded-2xl bg-white p-3"
+                      style={{ border: '1px solid var(--border)' }}
+                    >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={qrDataUrl} alt="QR code" className="h-40 w-40" />
                     </div>
@@ -1045,10 +1852,12 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ state, patchDesign }
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>
   );
 };
+
+

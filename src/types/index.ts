@@ -174,6 +174,43 @@ export type BackgroundPreset = string; // Allow any preset ID for flexibility wi
 
 export type CardSide = 'front' | 'back';
 
+export interface ElementBox {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  rotate: number;
+  z: number;
+}
+
+export type TextAlign = 'left' | 'center' | 'right';
+
+export interface ElementTextStyle {
+  fontSize: number; // px
+  color: string; // hex
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
+  align: TextAlign;
+  letterSpacing: number; // px
+  lineHeight: number; // unitless
+}
+
+export interface SideLayoutOverrides {
+  elements: Record<string, ElementBox>;
+  backgroundImage?: ElementBox;
+  textStyles?: Record<string, ElementTextStyle>;
+  baseW?: number;
+  baseH?: number;
+  templateId?: TemplateId;
+  padding?: number;
+}
+
+export interface LayoutOverrides {
+  front: SideLayoutOverrides;
+  back: SideLayoutOverrides;
+}
+
 export interface ContactVisibility {
   email: boolean;
   phone: boolean;
@@ -226,6 +263,9 @@ export interface DesignSettings {
   backBackgroundColor: string;
   backBackgroundIntensity: number;
   backBackgroundVariant: BackgroundVariant;
+
+  // Manual layout overrides for preview edit mode
+  layout?: LayoutOverrides;
 }
 
 export interface BusinessCardState {

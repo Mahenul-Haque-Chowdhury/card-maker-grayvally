@@ -1,6 +1,6 @@
-# Premium Business Card Builder
+# GrayVally Business Card Maker
 
-A modern, premium web application for designing professional business cards.
+A modern, premium web application for designing professional business cards by GrayVally.
 
 ## Features
 

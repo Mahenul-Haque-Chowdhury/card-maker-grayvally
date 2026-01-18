@@ -3,11 +3,14 @@
 import * as React from "react";
 import type { LucideIcon } from "lucide-react";
 import {
+  AlignLeft,
   AlignCenter,
+  AlignRight,
   ArrowLeftRight,
   ArrowLeft,
   ArrowRight,
   BadgeCheck,
+  Bold,
   Briefcase,
   Building2,
   CirclePlus,
@@ -39,18 +42,21 @@ import {
   MapPin,
   Menu,
   Moon,
+  Move,
   MousePointer2,
   Palette,
   Pen,
   Phone,
   Play,
   Printer,
+  RefreshCcw,
   QrCode,
   Redo,
   Redo2,
   Save,
   Settings,
   Shield,
+  SendToBack,
   Square,
   SlidersHorizontal,
   Smartphone,
@@ -70,14 +76,23 @@ import {
   Zap,
   ZoomIn,
   ZoomOut,
+  RotateCw,
+  BringToFront,
+  Italic,
+  Minus,
+  Plus,
+  Underline,
 } from "lucide-react";
 
 export type IconName =
+  | "AlignLeft"
   | "AlignCenter"
+  | "AlignRight"
   | "ArrowLeftRight"
   | "ArrowLeft"
   | "ArrowRight"
   | "BadgeCheck"
+  | "Bold"
   | "Briefcase"
   | "Building2"
   | "CirclePlus"
@@ -109,18 +124,21 @@ export type IconName =
   | "MapPin"
   | "Menu"
   | "Moon"
+  | "Move"
   | "MousePointer2"
   | "Palette"
   | "Pen"
   | "Phone"
   | "Play"
   | "Printer"
+  | "RefreshCcw"
   | "QrCode"
   | "Redo"
   | "Redo2"
   | "Save"
   | "Settings"
   | "Shield"
+  | "SendToBack"
   | "Square"
   | "SlidersHorizontal"
   | "Smartphone"
@@ -139,7 +157,13 @@ export type IconName =
   | "Youtube"
   | "Zap"
   | "ZoomIn"
-  | "ZoomOut";
+  | "ZoomOut"
+  | "RotateCw"
+  | "BringToFront"
+  | "Italic"
+  | "Underline"
+  | "Plus"
+  | "Minus";
 
 export type IconSize =
   | "input" // 16px
@@ -153,11 +177,14 @@ export type IconSize =
   | number;
 
 const ICONS: Record<IconName, LucideIcon> = {
+  AlignLeft,
   AlignCenter,
+  AlignRight,
   ArrowLeftRight,
   ArrowLeft,
   ArrowRight,
   BadgeCheck,
+  Bold,
   Briefcase,
   Building2,
   CirclePlus,
@@ -189,18 +216,21 @@ const ICONS: Record<IconName, LucideIcon> = {
   MapPin,
   Menu,
   Moon,
+  Move,
   MousePointer2,
   Palette,
   Pen,
   Phone,
   Play,
   Printer,
+  RefreshCcw,
   QrCode,
   Redo,
   Redo2,
   Save,
   Settings,
   Shield,
+  SendToBack,
   Square,
   SlidersHorizontal,
   Smartphone,
@@ -220,6 +250,12 @@ const ICONS: Record<IconName, LucideIcon> = {
   Zap,
   ZoomIn,
   ZoomOut,
+  RotateCw,
+  BringToFront,
+  Italic,
+  Underline,
+  Plus,
+  Minus,
 };
 
 function resolveSize(size: IconSize | undefined): number {

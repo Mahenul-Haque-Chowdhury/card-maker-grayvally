@@ -110,10 +110,10 @@ function IconButton({
         disabled 
           ? 'opacity-40 cursor-not-allowed' 
           : active
-            ? 'ui-shadow-glow bg-linear-to-br from-indigo-500/10 to-purple-500/10'
-            : 'ui-surface-2 hover:ui-shadow hover:border-indigo-500/20'
+            ? 'ui-shadow-glow bg-linear-to-br from-teal-500/10 to-sky-500/10'
+            : 'ui-surface-2 hover:ui-shadow hover:border-teal-500/20'
       }`}
-      style={{ borderColor: active ? 'rgba(99, 102, 241, 0.3)' : undefined }}
+      style={{ borderColor: active ? 'rgba(20, 184, 166, 0.3)' : undefined }}
     >
       {children}
     </button>
@@ -196,16 +196,16 @@ function Chip({
         disabled
           ? 'opacity-45 cursor-not-allowed ui-surface'
           : active
-            ? 'ui-shadow-glow bg-linear-to-br from-indigo-500/8 to-purple-500/8 border-indigo-500/25'
+            ? 'ui-shadow-glow bg-linear-to-br from-teal-500/8 to-sky-500/8 border-teal-500/25'
             : 'ui-surface hover:ui-shadow hover-lift'
       }`}
       style={{ 
-        borderColor: active && !disabled ? 'rgba(99, 102, 241, 0.30)' : undefined,
-        background: active && !disabled ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.06))' : undefined
+        borderColor: active && !disabled ? 'rgba(20, 184, 166, 0.30)' : undefined,
+        background: active && !disabled ? 'linear-gradient(135deg, rgba(20, 184, 166, 0.08), rgba(14, 165, 233, 0.06))' : undefined
       }}
     >
       <span className="relative inline-flex items-center justify-center h-8 w-8 rounded-xl transition-all" style={{ border: '1px solid var(--border)', background: active ? 'rgba(99,102,241,0.08)' : 'var(--surface-2)' }}>
-        <span className="relative" style={{ color: active ? 'rgb(99, 102, 241)' : 'var(--muted)' }}>
+        <span className="relative" style={{ color: active ? 'rgb(20, 184, 166)' : 'var(--muted)' }}>
           {icon}
         </span>
         <span
@@ -213,12 +213,12 @@ function Chip({
           style={{
             border: '1.5px solid var(--surface)',
             background: active 
-              ? 'linear-gradient(135deg, rgb(99, 102, 241), rgb(139, 92, 246))' 
+              ? 'linear-gradient(135deg, rgb(20, 184, 166), rgb(14, 165, 233))' 
               : disabled 
                 ? 'rgba(148,163,184,0.35)' 
                 : 'rgba(148,163,184,0.65)',
             color: active ? 'white' : 'rgba(15,23,42,0.75)',
-            boxShadow: active ? '0 2px 6px rgba(99, 102, 241, 0.35)' : 'none',
+            boxShadow: active ? '0 2px 6px rgba(20, 184, 166, 0.35)' : 'none',
           }}
           title={required ? 'Required' : active ? 'Added' : 'Add'}
         >
@@ -277,7 +277,7 @@ function Toggle({
       <span
         className={`relative inline-flex h-5 w-10 items-center rounded-full transition-all duration-200 ${
           checked 
-            ? 'bg-linear-to-r from-indigo-500 to-purple-500' 
+            ? 'bg-linear-to-r from-teal-500 to-sky-500' 
             : 'bg-surface-3'
         }`}
       >
@@ -314,17 +314,17 @@ function CollapsibleSection({
       <button
         type="button"
         onClick={onToggle}
-        className="w-full px-4 py-4 flex items-center justify-between gap-3 hover:bg-linear-to-r hover:from-indigo-500/3 hover:to-purple-500/3 transition-all"
+        className="w-full px-4 py-4 flex items-center justify-between gap-3 hover:bg-linear-to-r hover:from-teal-500/3 hover:to-sky-500/3 transition-all"
       >
         <div className="flex items-center gap-3">
           <div 
             className="h-10 w-10 rounded-xl grid place-items-center transition-all"
             style={{ 
               background: open 
-                ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(139, 92, 246, 0.08))' 
+                ? 'linear-gradient(135deg, rgba(20, 184, 166, 0.12), rgba(14, 165, 233, 0.08))' 
                 : 'var(--surface-2)',
               border: '1px solid var(--border)',
-              color: open ? 'rgb(99, 102, 241)' : 'var(--muted)'
+              color: open ? 'rgb(20, 184, 166)' : 'var(--muted)'
             }}
           >
             {icon}
@@ -342,8 +342,8 @@ function CollapsibleSection({
         <div 
           className="h-8 w-8 rounded-lg grid place-items-center transition-all"
           style={{ 
-            background: open ? 'rgba(99, 102, 241, 0.08)' : 'transparent',
-            color: open ? 'rgb(99, 102, 241)' : 'var(--muted-2)'
+            background: open ? 'rgba(20, 184, 166, 0.08)' : 'transparent',
+            color: open ? 'rgb(20, 184, 166)' : 'var(--muted-2)'
           }}
         >
           {open ? <Icon name="ChevronUp" size="button" decorative /> : <Icon name="ChevronDown" size="button" decorative />}
@@ -459,7 +459,7 @@ function BackgroundSection({
             onClick={() => setActiveSide('front')}
             className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition-all ${
               activeSide === 'front'
-                ? 'bg-linear-to-r from-indigo-500 to-purple-500 text-white shadow-lg'
+                ? 'bg-linear-to-r from-teal-500 to-sky-500 text-white shadow-lg'
                 : 'ui-surface hover:ui-shadow text-muted'
             }`}
           >
@@ -473,7 +473,7 @@ function BackgroundSection({
             onClick={() => setActiveSide('back')}
             className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition-all ${
               activeSide === 'back'
-                ? 'bg-linear-to-r from-indigo-500 to-purple-500 text-white shadow-lg'
+                ? 'bg-linear-to-r from-teal-500 to-sky-500 text-white shadow-lg'
                 : 'ui-surface hover:ui-shadow text-muted'
             }`}
           >
@@ -489,7 +489,7 @@ function BackgroundSection({
       <div className="ui-surface-2 rounded-2xl p-4">
         <div className="flex items-center justify-between gap-3 mb-4">
           <div className="text-xs font-bold">Background Type</div>
-          <div className="text-[10px] font-medium px-2 py-1 rounded-full" style={{ background: 'rgba(139, 92, 246, 0.1)', color: 'rgb(139, 92, 246)' }}>
+          <div className="text-[10px] font-medium px-2 py-1 rounded-full" style={{ background: 'rgba(14, 165, 233, 0.1)', color: 'rgb(14, 165, 233)' }}>
             {activeSide === 'front' ? 'Front' : 'Back'}
           </div>
         </div>
@@ -515,7 +515,7 @@ function BackgroundSection({
                 }}
                 className={`py-3 px-2 rounded-xl text-center transition-all ${
                   selected
-                    ? 'bg-linear-to-br from-indigo-500/10 to-purple-500/10 ring-2 ring-indigo-500/30'
+                    ? 'bg-linear-to-br from-teal-500/10 to-sky-500/10 ring-2 ring-teal-500/30'
                     : 'ui-surface hover:ui-shadow'
                 }`}
               >
@@ -571,7 +571,7 @@ function BackgroundSection({
                 type="button"
                 onClick={() => updateSideDesign('backgroundColor', color)}
                 className={`w-full aspect-square rounded-lg transition-transform hover:scale-110 ${
-                  currentColor === color ? 'ring-2 ring-indigo-500 ring-offset-1' : ''
+                  currentColor === color ? 'ring-2 ring-teal-500 ring-offset-1' : ''
                 }`}
                 style={{ background: color, border: '1px solid var(--border)' }}
               />
@@ -608,7 +608,7 @@ function BackgroundSection({
                 }}
                 className={`shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-semibold transition-all ${
                   presetCategory === cat.id
-                    ? 'bg-linear-to-r from-indigo-500 to-purple-500 text-white'
+                    ? 'bg-linear-to-r from-teal-500 to-sky-500 text-white'
                     : 'ui-surface hover:ui-shadow'
                 }`}
               >
@@ -631,8 +631,8 @@ function BackgroundSection({
                   }}
                   className={`group rounded-xl p-1.5 transition-all ${
                     selected
-                      ? 'ring-2 ring-indigo-500/50 bg-linear-to-br from-indigo-500/5 to-purple-500/5'
-                      : 'hover:ring-1 hover:ring-indigo-500/20'
+                      ? 'ring-2 ring-teal-500/50 bg-linear-to-br from-teal-500/5 to-sky-500/5'
+                      : 'hover:ring-1 hover:ring-teal-500/20'
                   }`}
                 >
                   <div
@@ -690,7 +690,7 @@ function BackgroundSection({
                     onClick={() => updateSideDesign('backgroundStyle', s.id as DesignSettings['backgroundStyle'])}
                     className={`group rounded-xl p-2 transition-all ${
                       selected
-                        ? 'ring-2 ring-indigo-500/40 bg-linear-to-br from-indigo-500/5 to-purple-500/5'
+                        ? 'ring-2 ring-teal-500/40 bg-linear-to-br from-teal-500/5 to-sky-500/5'
                         : 'ui-surface hover:ui-shadow'
                     }`}
                   >
@@ -729,7 +729,7 @@ function BackgroundSection({
                     type="button"
                     onClick={() => updateSideDesign('backgroundVariant', v)}
                     className={`rounded-xl p-1.5 transition-all ${
-                      selected ? 'ring-2 ring-indigo-500/35' : 'hover:ring-1 hover:ring-indigo-500/20'
+                      selected ? 'ring-2 ring-teal-500/35' : 'hover:ring-1 hover:ring-teal-500/20'
                     }`}
                   >
                     <div className="h-9 w-full rounded-lg" style={{ background: bg, border: '1px solid var(--border)' }} />
@@ -811,7 +811,7 @@ function BackgroundSection({
             <button
               type="button"
               onClick={() => (activeSide === 'front' ? imageInputRef : backImageInputRef).current?.click()}
-              className="w-full py-8 rounded-xl border-2 border-dashed border-border-strong hover:border-indigo-400 dark:hover:border-indigo-500 transition-all flex flex-col items-center justify-center gap-2"
+              className="w-full py-8 rounded-xl border-2 border-dashed border-border-strong hover:border-teal-400 dark:hover:border-teal-500 transition-all flex flex-col items-center justify-center gap-2"
             >
               <Icon name="Upload" size="action" className="text-muted-2" decorative />
               <div className="text-xs font-semibold text-muted">Click to upload image</div>
@@ -1001,11 +1001,15 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="relative">
-              <div className="h-12 w-12 rounded-2xl bg-linear-to-br from-indigo-500 via-purple-500 to-pink-500" />
-              <div className="absolute inset-0 h-12 w-12 rounded-2xl bg-linear-to-br from-indigo-500 via-purple-500 to-pink-500 blur-xl opacity-40" />
+              <img
+                src="/GrayVally.png"
+                alt="GrayVally logo"
+                className="h-12 w-12 rounded-2xl object-cover ui-shadow"
+              />
+              <div className="absolute inset-0 h-12 w-12 rounded-2xl bg-linear-to-br from-teal-500 via-sky-500 to-orange-500 blur-xl opacity-40" />
             </div>
             <div className="leading-tight">
-              <div className="text-lg font-bold tracking-tight">CardCraft Pro</div>
+              <div className="text-lg font-bold tracking-tight">GrayVally Business Card Maker</div>
               <div className="text-xs font-medium mt-0.5" style={{ color: 'var(--muted-2)' }}>
                 Professional Business Card Designer
               </div>
@@ -1070,8 +1074,8 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                     saveVersion(versionName || `Version · ${new Date().toLocaleString()}`);
                     setVersionName('');
                   }}
-                  className="inline-flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-white bg-linear-to-r from-indigo-500 to-purple-500 hover:opacity-90 transition-all hover-lift"
-                  style={{ boxShadow: '0 2px 8px rgba(99, 102, 241, 0.35)' }}
+                  className="inline-flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-white bg-linear-to-r from-teal-500 to-sky-500 hover:opacity-90 transition-all hover-lift"
+                  style={{ boxShadow: '0 2px 8px rgba(20, 184, 166, 0.35)' }}
                 >
                   <Icon name="Save" size="button" decorative /> Save
                 </button>
@@ -1082,12 +1086,12 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
           <div className="ui-surface rounded-2xl p-4 hover-lift transition-all">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2.5">
-                <div className="h-8 w-8 rounded-lg grid place-items-center" style={{ background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.12), rgba(139, 92, 246, 0.06))', border: '1px solid rgba(139, 92, 246, 0.2)' }}>
-                  <Icon name="Sparkles" size="input" style={{ color: 'rgb(139, 92, 246)' }} decorative />
+                <div className="h-8 w-8 rounded-lg grid place-items-center" style={{ background: 'linear-gradient(135deg, rgba(14, 165, 233, 0.12), rgba(14, 165, 233, 0.06))', border: '1px solid rgba(14, 165, 233, 0.2)' }}>
+                  <Icon name="Sparkles" size="input" style={{ color: 'rgb(14, 165, 233)' }} decorative />
                 </div>
                 <div className="text-xs font-bold">Quick Actions</div>
               </div>
-              <div className="text-[10px] font-medium px-2 py-1 rounded-full" style={{ background: 'rgba(139, 92, 246, 0.1)', color: 'rgb(139, 92, 246)' }}>
+              <div className="text-[10px] font-medium px-2 py-1 rounded-full" style={{ background: 'rgba(14, 165, 233, 0.1)', color: 'rgb(14, 165, 233)' }}>
                 Pro
               </div>
             </div>
@@ -1132,8 +1136,8 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
           onClick={generateRandomCard}
           className="group flex items-center justify-center gap-3 rounded-2xl px-5 py-4 text-sm font-bold text-white transition-all hover-lift"
           style={{
-            background: 'linear-gradient(135deg, rgb(99, 102, 241), rgb(139, 92, 246))',
-            boxShadow: '0 4px 14px rgba(99, 102, 241, 0.35)',
+            background: 'linear-gradient(135deg, rgb(20, 184, 166), rgb(14, 165, 233))',
+            boxShadow: '0 4px 14px rgba(20, 184, 166, 0.35)',
           }}
         >
           <Icon name="Dices" size="button" className="group-hover:rotate-180 transition-transform duration-500" decorative />
@@ -1145,7 +1149,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
           className="group flex items-center justify-center gap-3 rounded-2xl px-5 py-4 text-sm font-bold transition-all hover-lift ui-surface hover:ui-shadow-lg"
           style={{ border: '1px solid var(--border)' }}
         >
-          <Icon name="Palette" size="button" style={{ color: 'rgb(99, 102, 241)' }} decorative />
+          <Icon name="Palette" size="button" style={{ color: 'rgb(20, 184, 166)' }} decorative />
           <span>Customize Your Own</span>
         </button>
       </div>
@@ -1186,7 +1190,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
               <div className="flex items-center justify-between gap-3">
                 <div className="text-xs font-bold">Contact Methods</div>
                 <div className="flex items-center gap-2">
-                  <div className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${optionalSelected >= OPTIONAL_LIMIT ? 'bg-amber-500/15 text-amber-600' : 'bg-indigo-500/10 text-indigo-600'}`}>
+                  <div className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${optionalSelected >= OPTIONAL_LIMIT ? 'bg-amber-500/15 text-amber-600' : 'bg-teal-500/10 text-teal-600'}`}>
                     {optionalSelected}/{OPTIONAL_LIMIT} selected
                   </div>
                 </div>
@@ -1483,7 +1487,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       aria-label={`Logo position ${p.fullName}`}
                       className={`group rounded-2xl p-2 transition-all ${
                         selected 
-                          ? 'ui-shadow-glow ring-2 ring-indigo-500/40 bg-linear-to-br from-indigo-500/8 to-purple-500/6' 
+                          ? 'ui-shadow-glow ring-2 ring-teal-500/40 bg-linear-to-br from-teal-500/8 to-sky-500/6' 
                           : 'ui-surface hover:ui-shadow'
                       }`}
                     >
@@ -1491,7 +1495,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                         className="relative w-full aspect-7/4 rounded-lg overflow-hidden"
                         style={{
                           background: 'var(--surface-2)',
-                          border: selected ? '1.5px solid rgba(99, 102, 241, 0.3)' : '1px solid var(--border)',
+                          border: selected ? '1.5px solid rgba(20, 184, 166, 0.3)' : '1px solid var(--border)',
                         }}
                       >
                         {/* Card lines to show layout */}
@@ -1506,15 +1510,15 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                             width: 12,
                             height: 12,
                             background: selected 
-                              ? 'linear-gradient(135deg, rgb(99, 102, 241), rgb(139, 92, 246))' 
-                              : 'linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(139, 92, 246, 0.18))',
-                            boxShadow: selected ? '0 2px 6px rgba(99, 102, 241, 0.4)' : 'none',
+                              ? 'linear-gradient(135deg, rgb(20, 184, 166), rgb(14, 165, 233))' 
+                              : 'linear-gradient(135deg, rgba(20, 184, 166, 0.25), rgba(14, 165, 233, 0.18))',
+                            boxShadow: selected ? '0 2px 6px rgba(20, 184, 166, 0.4)' : 'none',
                           }}
                         />
                       </div>
                       <div 
                         className="mt-1.5 text-[9px] font-semibold text-center truncate"
-                        style={{ color: selected ? 'rgb(99, 102, 241)' : 'var(--muted-2)' }}
+                        style={{ color: selected ? 'rgb(20, 184, 166)' : 'var(--muted-2)' }}
                       >
                         {p.fullName}
                       </div>
@@ -1559,7 +1563,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                         <input
                           value={state.design[c.key]}
                           onChange={(e) => updateDesign(c.key, e.target.value)}
-                          className="w-24 rounded-xl px-3 py-2.5 text-xs font-mono font-medium ui-surface-2 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 uppercase"
+                          className="w-24 rounded-xl px-3 py-2.5 text-xs font-mono font-medium ui-surface-2 focus:outline-none focus:ring-2 focus:ring-teal-500/30 uppercase"
                           style={{ letterSpacing: '0.02em' }}
                         />
                       </div>
@@ -1626,13 +1630,13 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
               <div className="ui-surface-2 rounded-2xl p-4">
                 <div className="flex items-center justify-between gap-3 mb-4">
                   <div className="flex items-center gap-2">
-                    <div className="h-7 w-7 rounded-lg grid place-items-center" style={{ background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(99, 102, 241, 0.06))', border: '1px solid rgba(99, 102, 241, 0.2)' }}>
-                      <Icon name="Sparkles" size="input" style={{ color: 'rgb(99, 102, 241)' }} decorative />
+                    <div className="h-7 w-7 rounded-lg grid place-items-center" style={{ background: 'linear-gradient(135deg, rgba(20, 184, 166, 0.12), rgba(20, 184, 166, 0.06))', border: '1px solid rgba(20, 184, 166, 0.2)' }}>
+                      <Icon name="Sparkles" size="input" style={{ color: 'rgb(20, 184, 166)' }} decorative />
                     </div>
                     <div className="text-xs font-bold">Premium Templates</div>
                   </div>
                   <div className="flex items-center gap-2">
-                  <div className="text-[10px] font-medium px-2 py-1 rounded-full" style={{ background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.08))', color: 'rgb(99, 102, 241)' }}>
+                  <div className="text-[10px] font-medium px-2 py-1 rounded-full" style={{ background: 'linear-gradient(135deg, rgba(20, 184, 166, 0.1), rgba(14, 165, 233, 0.08))', color: 'rgb(20, 184, 166)' }}>
                     {Math.min(visibleTemplateCount, totalTemplatesCount)} / {totalTemplatesCount}
                   </div>
                 </div>
@@ -1699,7 +1703,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                                 onClick={() => applyTemplate(t.id)}
                                 className={`group relative rounded-2xl p-2.5 text-left transition-all hover-lift ${
                                   selected 
-                                    ? 'ui-shadow-glow ring-2 ring-indigo-500/40 bg-linear-to-br from-indigo-500/8 to-purple-500/6' 
+                                    ? 'ui-shadow-glow ring-2 ring-teal-500/40 bg-linear-to-br from-teal-500/8 to-sky-500/6' 
                                     : 'ui-surface hover:ui-shadow-lg'
                                 }`}
                               >
@@ -1851,7 +1855,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                                     </div>
                                   </div>
                                   {selected && (
-                                    <div className="shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-full" style={{ background: 'linear-gradient(135deg, rgb(99, 102, 241), rgb(139, 92, 246))' }}>
+                                    <div className="shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-full" style={{ background: 'linear-gradient(135deg, rgb(20, 184, 166), rgb(14, 165, 233))' }}>
                                       <Icon name="Check" size={12} style={{ color: 'white' }} decorative />
                                     </div>
                                   )}
@@ -1944,10 +1948,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                       onClick={() => updateDesign('iconStyle', s.id)}
                       className={`group rounded-2xl p-3 text-left transition-all hover-lift ${
                         selected
-                          ? 'ui-shadow-glow ring-2 ring-indigo-500/35 bg-linear-to-br from-indigo-500/8 to-purple-500/6'
+                          ? 'ui-shadow-glow ring-2 ring-teal-500/35 bg-linear-to-br from-teal-500/8 to-sky-500/6'
                           : 'ui-surface hover:ui-shadow'
                       }`}
-                      style={{ border: selected ? '1px solid rgba(99, 102, 241, 0.28)' : '1px solid var(--border)' }}
+                      style={{ border: selected ? '1px solid rgba(20, 184, 166, 0.28)' : '1px solid var(--border)' }}
                       aria-pressed={selected}
                     >
                       <div className="flex items-center justify-between gap-3">
@@ -1964,14 +1968,14 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                           {s.id === 'minimal' ? (
                             <span
                               className="inline-block h-2.5 w-2.5 rounded-full"
-                              style={{ background: 'rgba(99, 102, 241, 0.75)' }}
+                              style={{ background: 'rgba(20, 184, 166, 0.75)' }}
                             />
                           ) : (
                             <span
                               className="inline-flex items-center justify-center h-9 w-9 rounded-xl"
                               style={
                                 s.id === 'solid'
-                                  ? { background: 'rgba(99, 102, 241, 0.14)', border: '1px solid var(--border)' }
+                                  ? { background: 'rgba(20, 184, 166, 0.14)', border: '1px solid var(--border)' }
                                   : { background: 'var(--surface-2)', border: '1px solid var(--border)' }
                               }
                             >
@@ -1979,7 +1983,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                                 name="Mail"
                                 size="button"
                                 strokeWidth={strokeWidth}
-                                style={{ color: selected ? 'rgb(99, 102, 241)' : 'var(--muted)' }}
+                                style={{ color: selected ? 'rgb(20, 184, 166)' : 'var(--muted)' }}
                                 decorative
                               />
                             </span>
@@ -2054,3 +2058,5 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
     </div>
   );
 };
+
+
